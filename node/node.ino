@@ -14,11 +14,15 @@ RFM69 radio;
 byte readSerialLine(char* input, char endOfLineChar=10, byte maxLength=64, uint16_t timeout=50);
 
 int currentVal = 1;
-
+char *p;
+char *cmd;
+char *data;
+      
 void setup(){
-  Serial.begin(SERIAL_BAUD);
   radio.initialize(FREQUENCY,NODEID,NETWORKID);
   radio.encrypt(ENCRYPTKEY);
+  
+  Serial.begin(SERIAL_BAUD);
   Serial.println("Ready");
   
   pinMode(2, INPUT_PULLUP);
@@ -27,29 +31,38 @@ void setup(){
 void loop(){
   if (radio.receiveDone()){
     if (radio.DATALEN > 0){
-      char *p;
-      char *cmd;
-      char *data;
-      
-      p = strtok((char *)radio.DATA, ":");
-      if (p){
-        cmd = p;
+      if (parseCommand((char *)radio.DATA)){
+         Serial.println(cmd);
+         Serial.println(data);
+      }else{
+        Serial.println("Not a valid command");
       }
-      p = strtok(NULL, ":");
-      if(p){
-        data  = p;
-      }
-      Serial.println(cmd);
-      Serial.println(data);
     }
   }
+  
   int sensorVal = digitalRead(2);
   if (sensorVal != currentVal){
     currentVal = sensorVal;
-    Serial.println("Changed");
+    Serial.print("Changed: ");
     Serial.println(currentVal);
-    if (radio.sendWithRetry(BASEID, "TEMP1:76.3", 10, 0)){
+    if (radio.sendWithRetry(BASEID, "SENSOR1:76.3", 10, 0)){
       Serial.println("Sent to base");
     }
   }
+}
+
+boolean parseCommand(char *radioData){
+  cmd = '\0';
+  data = '\0';
+  p = strtok(radioData, ":");
+  if (p)
+    cmd = p;
+  p = strtok(NULL, ":");
+  if(p)
+    data  = p;
+      
+  if (cmd != NULL && data != NULL){
+     return 1;
+  }
+  return 0;
 }
